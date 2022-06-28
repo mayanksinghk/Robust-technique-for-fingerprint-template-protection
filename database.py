@@ -3,12 +3,12 @@
 This python script will perform the following task:
 1) Read the minutiae points from .txt file and singular points from .singular points
 2) Secured template generation
-3) Save the generated template in a database with key as the subject number, image number, singular point number
+3) Save the generated template in a database with key as the subject number, finger number, singular point number
 
 """
 
 import numpy as np
-import sys 
+import os
 import math
 
 def integer_from_binary(b):
@@ -45,16 +45,73 @@ def save_template(snum, fnum, singnum):
     pass
 
 
-def read_features():
-    pass
+# This function takes the database path as the input and looks for file with all the txt and singular extension file add call the function to extract minutiae and singular points
+def read_features(dir_path):
+    
+    for path in os.listdir(dir_path):
+
+        if(os.path.isfile(os.path.join(dir_path, path))):
+            file_with_extension = os.path.splitext(path)
+            file_name = file_with_extension[0]
+            file_extension = file_with_extension[1]
+            rpath = os.path.join(dir_path, path)
+
+            if(file_extension == ".txt"):
+                # print(rpath)
+                minutiae = read_minutiae(rpath)
+            
+            if(file_extension == ".singular"):
+                # print(rpath)
+                singular = read_singular(rpath)
 
 
-def read_minutiae():
-    pass
+
+# This function reads the all the minutiae points in a file(extension of the file should be .txt) and returns a list containing all the minutiae points
+def read_minutiae(file_name):
+    # Check if the file is correct that is the extenstion of the file is .text
+    file_with_extension = os.path.splitext(file_name)
+    f_name = file_with_extension[0]
+    f_extension = file_with_extension[1]
+
+    if(f_extension != ".txt"):
+        raise TypeError("The extension of the input file is not .txt which is standard for minutiae points file")
+
+    m_points = []
+
+    with open(file_name) as f:
+        lines = f.readlines()
+        for line in lines:
+            temp = line.split()
+            x,y,d = temp[0],temp[1],temp[2]
+            x,y = float(x),float(y)
+            theta = math.radians(float(d))
+            m_points.append([x,y,theta])
+            
+    return m_points
+
+# This function reads the all the singular points in a file(extension of the file should be .singular) and returns a list containing all the singular points
+def read_singular(file_name):
+    # Check if the file is correct that is the extenstion of the file is .singular
+    file_with_extension = os.path.splitext(file_name)
+    f_name = file_with_extension[0]
+    f_extension = file_with_extension[1]
+
+    if(f_extension != ".singular"):
+        raise TypeError("The extension of the input file is not .singular which is standard for singular points file")
+
+    s_points = []
+
+    with open(file_name) as f:
+        lines = f.readlines()
+        for line in lines:
+            temp = line.split()
+            x,y = temp[0],temp[1]
+            x,y = float(x),float(y)
+            s_points.append([x,y])
+            
+    return s_points
 
 
-def read_singular():
-    pass
+# generate_keyset()
 
-
-generate_keyset()
+read_features(dir_path="Database")
