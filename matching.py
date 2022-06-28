@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 This python script will implement following functionalities:
 1) Perform one to one matching between query and a template stored in database. 

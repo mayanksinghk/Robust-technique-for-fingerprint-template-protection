@@ -45,11 +45,12 @@ def save_template(snum, fnum, singnum):
     pass
 
 
-# This function takes the database path as the input and looks for file with all the txt and singular extension file add call the function to extract minutiae and singular points
+# This function returns an dictionary with subject number as the key and it contains the singular and minutiae point details.
 def read_features(dir_path):
+
+    mydic = {}
     
     for path in os.listdir(dir_path):
-
         if(os.path.isfile(os.path.join(dir_path, path))):
             file_with_extension = os.path.splitext(path)
             file_name = file_with_extension[0]
@@ -57,13 +58,16 @@ def read_features(dir_path):
             rpath = os.path.join(dir_path, path)
 
             if(file_extension == ".txt"):
-                # print(rpath)
+                file_name = file_name + "_m"
                 minutiae = read_minutiae(rpath)
+                mydic[file_name] = minutiae
             
             if(file_extension == ".singular"):
-                # print(rpath)
+                file_name = file_name + "_s"
                 singular = read_singular(rpath)
+                mydic[file_name] = singular
 
+    return mydic
 
 
 # This function reads the all the minutiae points in a file(extension of the file should be .txt) and returns a list containing all the minutiae points
@@ -111,7 +115,12 @@ def read_singular(file_name):
             
     return s_points
 
+# This function prints the dictonary in the forma key1:value1 \n key2:value2
+def print_dic(dic):
+    for x in dic:
+        print (x,':',dic[x])
 
 # generate_keyset()
 
-read_features(dir_path="Database")
+dic = read_features(dir_path="Database")
+# print_dic(dic)
