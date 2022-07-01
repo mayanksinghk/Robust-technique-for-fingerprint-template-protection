@@ -122,6 +122,19 @@ def print_dic(dic):
     for x in dic:
         print (x,':',dic[x])
 
+def save_template(filename, modified_list):
+    filename = os.getcwd() + "/Templates/" + filename;
+    
+    if(not os.path.isdir(os.getcwd() + "/Templates/")):
+        os.mkdir(os.getcwd() + "/Templates/")
+
+    with open(filename, 'w') as fp:
+        for item in modified_list:
+            x = item[0]
+            y = item[1]
+            s = "%s %s\n" % (x, y)
+            fp.write(s)
+
 # This function generates the secured template for fingerprint 
 def generate_secured_template(database = "Database"):
     # s0, p0, q0, r0 = 11,23,54,6
@@ -182,16 +195,11 @@ def generate_secured_template(database = "Database"):
                 yiprime = yiprime + s0*math.sin(math.radians(r0))
                 modified_minutiae_list.append((xiprime, yiprime))
 
-
-
-# def save_template(snum, fnum, singnum):
-#     pass
-
-
+            save_file_name = a + "_" + str(s)
+            save_template(save_file_name, modified_minutiae_list)
 
 def main():
     generate_secured_template("Database")
-
 
 # Main function calling
 if __name__ == "__main__":
