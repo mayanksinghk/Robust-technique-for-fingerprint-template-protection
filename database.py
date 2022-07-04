@@ -7,7 +7,6 @@ This python script will perform the following task:
 
 """
 
-from cv2 import sqrt
 import numpy as np
 import os
 import math
@@ -36,6 +35,13 @@ def generate_keyset(llimit = 1, ulimit = 11):
     r = np.random.randint(llimit, ulimit)
     s = get_s0(p, q, r)
     
+    filename =os.path.join(os.getcwd(), "key.txt")
+    with open(filename, 'w') as fp:
+        fp.write(str(p) + "\n")
+        fp.write(str(q) + "\n")
+        fp.write(str(r) + "\n")
+        fp.write(str(s) + "\n")
+
     return s, p, q, r
 
 # This function reads the all the minutiae points in a file(extension of the file should be .txt) and returns a list containing all the minutiae points
@@ -135,9 +141,59 @@ def save_template(filename, modified_list):
             s = "%s %s\n" % (x, y)
             fp.write(s)
 
+# This function takes minutiae list and singular point list and returns the generated template
+def generate_template(singular_list, minutiae_list, s0, p0, q0, r0,a):
+    n = len(minutiae_list)
+    modified_minutiae_list = []
+    
+    for s in range(len(singular_list)):
+        sx = singular_list[s][0]
+        sy = singular_list[s][1]
+
+        # We will process the minutiae point one by one i.e. we will run the algorithm one minutiae point by one minutiae point
+        for i in range(n):
+            dist = float('inf')
+            j = -1
+            xi = minutiae_list[i][0]
+            yi = minutiae_list[i][1]
+            # Computation of nearest location of minutiae point corresponding to current minutiae point
+            for k in range(n):
+                if( k != i):
+                    dx = (xi-minutiae_list[k][0])*(xi-minutiae_list[k][0])
+                    dy = (yi-minutiae_list[k][1])*(yi-minutiae_list[k][1])
+
+                    dis = math.sqrt(dx + dy)
+                    if(dis<dist):
+                        dist = dis
+                        j = k
+            
+            # Computation of modified location
+            if(xi - minutiae_list[j][0] != 0):
+                xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
+                yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
+            else:
+                xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( float('inf') ) ) )
+                yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( float('inf') ) ) )
+
+            # Reducing translation due to intra-subject variance
+            xiprime = xiprime - sx
+            yiprime = yiprime - sy
+
+            # Security enhancement of the user template
+            t1 = xiprime*math.cos(math.radians(q0)) - yiprime*math.sin(math.radians(q0))
+            t2 = xiprime*math.sin(math.radians(q0)) + yiprime*math.cos(math.radians(q0))
+            xiprime = t1
+            yiprime = t2
+
+            xiprime = xiprime + s0*math.cos(math.radians(r0))
+            yiprime = yiprime + s0*math.sin(math.radians(r0))
+            modified_minutiae_list.append((xiprime, yiprime))
+
+        save_file_name = a + "_" + str(s)
+        save_template(save_file_name, modified_minutiae_list)
+
 # This function generates the secured template for fingerprint 
 def generate_secured_template(database = "Database"):
-    # s0, p0, q0, r0 = 11,23,54,6
     dic, key = read_features(database)
     key = sorted(key)
 
@@ -148,55 +204,56 @@ def generate_secured_template(database = "Database"):
 
         minutiae_list = dic[minutiae]
         singular_list = dic[singular]
+        generate_template(singular_list, minutiae_list, s0, p0, q0, r0, a)
 
-        n = len(minutiae_list)
-        modified_minutiae_list = []
+        # n = len(minutiae_list)
+        # modified_minutiae_list = []
         
-        for s in range(len(singular_list)):
-            sx = singular_list[s][0]
-            sy = singular_list[s][1]
+        # for s in range(len(singular_list)):
+        #     sx = singular_list[s][0]
+        #     sy = singular_list[s][1]
 
-            # We will process the minutiae point one by one i.e. we will run the algorithm one minutiae point by one minutiae point
-            for i in range(n):
-                dist = float('inf')
-                j = -1
-                xi = minutiae_list[i][0]
-                yi = minutiae_list[i][1]
-                # Computation of nearest location of minutiae point corresponding to current minutiae point
-                for k in range(n):
-                    if( k != i):
-                        dx = (xi-minutiae_list[k][0])*(xi-minutiae_list[k][0])
-                        dy = (yi-minutiae_list[k][1])*(yi-minutiae_list[k][1])
+        #     # We will process the minutiae point one by one i.e. we will run the algorithm one minutiae point by one minutiae point
+        #     for i in range(n):
+        #         dist = float('inf')
+        #         j = -1
+        #         xi = minutiae_list[i][0]
+        #         yi = minutiae_list[i][1]
+        #         # Computation of nearest location of minutiae point corresponding to current minutiae point
+        #         for k in range(n):
+        #             if( k != i):
+        #                 dx = (xi-minutiae_list[k][0])*(xi-minutiae_list[k][0])
+        #                 dy = (yi-minutiae_list[k][1])*(yi-minutiae_list[k][1])
 
-                        dis = math.sqrt(dx + dy)
-                        if(dis<dist):
-                            dist = dis
-                            j = k
+        #                 dis = math.sqrt(dx + dy)
+        #                 if(dis<dist):
+        #                     dist = dis
+        #                     j = k
                 
-                # Computation of modified location
-                if(xi - minutiae_list[j][0] != 0):
-                    xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
-                    yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
-                else:
-                    xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( float('inf') ) ) )
-                    yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( float('inf') ) ) )
+        #         # Computation of modified location
+        #         if(xi - minutiae_list[j][0] != 0):
+        #             xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
+        #             yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( (yi-minutiae_list[j][1]) / (xi-minutiae_list[j][0]) ) ) )
+        #         else:
+        #             xiprime = xi + (p0*math.cos(math.radians(q0) + math.atan( float('inf') ) ) )
+        #             yiprime = yi + (p0*math.sin(math.radians(q0) + math.atan( float('inf') ) ) )
 
-                # Reducing translation due to intra-subject variance
-                xiprime = xiprime - sx
-                yiprime = yiprime - sy
+        #         # Reducing translation due to intra-subject variance
+        #         xiprime = xiprime - sx
+        #         yiprime = yiprime - sy
 
-                # Security enhancement of the user template
-                t1 = xiprime*math.cos(math.radians(q0)) - yiprime*math.sin(math.radians(q0))
-                t2 = xiprime*math.sin(math.radians(q0)) + yiprime*math.cos(math.radians(q0))
-                xiprime = t1
-                yiprime = t2
+        #         # Security enhancement of the user template
+        #         t1 = xiprime*math.cos(math.radians(q0)) - yiprime*math.sin(math.radians(q0))
+        #         t2 = xiprime*math.sin(math.radians(q0)) + yiprime*math.cos(math.radians(q0))
+        #         xiprime = t1
+        #         yiprime = t2
 
-                xiprime = xiprime + s0*math.cos(math.radians(r0))
-                yiprime = yiprime + s0*math.sin(math.radians(r0))
-                modified_minutiae_list.append((xiprime, yiprime))
+        #         xiprime = xiprime + s0*math.cos(math.radians(r0))
+        #         yiprime = yiprime + s0*math.sin(math.radians(r0))
+        #         modified_minutiae_list.append((xiprime, yiprime))
 
-            save_file_name = a + "_" + str(s)
-            save_template(save_file_name, modified_minutiae_list)
+        #     save_file_name = a + "_" + str(s)
+        #     save_template(save_file_name, modified_minutiae_list)
 
 def main():
     generate_secured_template("Database")
