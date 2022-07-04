@@ -87,6 +87,8 @@ def query_template(qimage):
                 theta = math.radians(float(d))
                 minutiae_list.append([x,y,theta])
 
+        # generate the template for query image
+
 
     return 0
 
