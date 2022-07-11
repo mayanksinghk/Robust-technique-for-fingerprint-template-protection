@@ -38,7 +38,6 @@ def read_keyset():
         for line in lines:
             temp = line.split()
             p, q, r = int(temp[0]), int(temp[1]), int(temp[2])
-            print("%s %s %s\n" % (p, q, r))
             break;
 
     s = get_s0(p, q, r)
@@ -130,7 +129,7 @@ def print_dic(dic):
         print (x,':',dic[x])
 
 def save_template(filename, modified_list):
-    filename = os.getcwd() + "/Templates/" + filename;
+    filename = os.getcwd() + "/Templates/" + filename + ".template";
     
     if(not os.path.isdir(os.getcwd() + "/Templates/")):
         os.mkdir(os.getcwd() + "/Templates/")
@@ -142,7 +141,7 @@ def save_template(filename, modified_list):
             s = "%s %s\n" % (x, y)
             fp.write(s)
 
-# This function takes minutiae list and singular point list and returns the generated template
+# This function takes minutiae list and singular point and key and image name whose template needs to be generated.
 def generate_template(sx, sy, minutiae_list, s0, p0, q0, r0,image_name):
     n = len(minutiae_list)
     modified_minutiae_list = []
@@ -187,13 +186,7 @@ def generate_template(sx, sy, minutiae_list, s0, p0, q0, r0,image_name):
         modified_minutiae_list.append((xiprime, yiprime))
 
     save_file_name = image_name + ".qtemplate"
-    # save_template(save_file_name, modified_minutiae_list)
-    with open(save_file_name, 'w') as fp:
-        for item in modified_minutiae_list:
-            x = item[0]
-            y = item[1]
-            s = "%s %s\n" % (x, y)
-            fp.write(s)
+    return save_file_name, modified_minutiae_list
 
 # This function generates the secured template for fingerprint 
 def generate_secured_template(database = "Database"):

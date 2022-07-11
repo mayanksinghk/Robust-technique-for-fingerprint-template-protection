@@ -9,6 +9,8 @@ Both of the function will return the matching score(highest matching score in ca
     matching score = ((min(mns/ns, mnq/nq))*100)
 """
 
+from cv2 import threshold
+from nbformat import read
 import template as tp
 import numpy as np
 import os
@@ -20,12 +22,52 @@ Things to do in Matching:
 [x] Input to file is the name of query fingerprint example: 101_1.png
 [x] Check if singular file is valid(present and non-empty)
 [x] Create the template for the fingerprint by selecting singular point closer to center of the image.
-[] Calculate hausdroff distance between every point in query with stored template and vice versa and the point is matched if the hausdroff dis is less than a threshold(T1)
-[] Now rotate the query template from -60 to 60 degrees 1 degree at a time to remove rotation invariant.
-[] Calculate matching score for each rotated query template and template stored in database. 
-[] Max out the matching score and compare it with the threshold(T2 or T) to know if the query and stored template is matched or not.
-[] Repeat this process for every stored template to get the exact result.
+[x] Calculate hausdroff distance between every point in query with stored template and vice versa and the point is matched if the hausdroff dis is less than a threshold(T1)
+[x] Now rotate the query template from -60 to 60 degrees 1 degree at a time to remove rotation invariant.
+[x-] Calculate matching score for each rotated query template and template stored in database. 
+[x] Max out the matching score and compare it with the threshold(T2 or T) to know if the query and stored template is matched or not.
+[x] Repeat this process for every stored template to get the exact result.
 """
+
+# This function rotates the input set of points by a certain degrees
+def rotate(p, origin=(0, 0), degrees=0):
+    angle = np.deg2rad(degrees)
+    R = np.array([[np.cos(angle), -np.sin(angle)],
+                  [np.sin(angle),  np.cos(angle)]])
+    o = np.atleast_2d(origin)
+    p = np.atleast_2d(p)
+    return np.squeeze((np.dot(R, (p.T-o.T)) + o.T).T)
+
+# This function takes two template as input and return the common point between two templates. The order of passing the template is important
+def hausdroff_score(qtemplate, dtemplate, threshold):
+    count = 0
+
+    for i in range(len(qtemplate)):
+        x = qtemplate[i][0]
+        y = qtemplate[i][1]
+        
+        min_dist = np.inf
+        for j in range(len(dtemplate)):
+            dist = math.sqrt( (x-dtemplate[j][0])*(x-dtemplate[j][0]) + (y-dtemplate[j][1])*(y-dtemplate[j][1]) )
+
+            if(min_dist > dist):
+                min_dist = dist
+        
+        if(min_dist < threshold):
+            count = count + 1
+    
+    return count
+
+# This is a scoring function this takes two templates as a input and return the matching score
+def matching_score(qtemplate, dtemplate, threshold1):
+    n_q = len(qtemplate)
+    n_s = len(dtemplate)
+    mn_s = hausdroff_score(dtemplate, qtemplate, threshold1)
+    mn_q = hausdroff_score(qtemplate, dtemplate, threshold1)
+
+    score = min(mn_s/n_s, mn_q/n_q)*100
+
+    return score
 
 # This function checks if the given name of th singular file is valid or not
 def check_singular_file(s):
@@ -56,8 +98,6 @@ def check_singular_file(s):
 
 # This function is takes the name of the fingerprint and creates the template for the query image
 def query_template(qimage):
-    
-
     file_with_extenstion = os.path.splitext(qimage)
     file_name = file_with_extenstion[0]
     singular_file = file_name + ".singular"
@@ -72,7 +112,6 @@ def query_template(qimage):
     minutiae_list = []
 
     check = check_singular_file(singular_file)
-    print(singular_file)
     if(check == False):
         print("The singular file is not valid")
         exit()
@@ -105,65 +144,80 @@ def query_template(qimage):
 
         # generate the template for query image
         file_name = file_with_extenstion[0]
-        tp.generate_template(sx, sy, minutiae_list, s, p, q, r, file_name)
+        save_file_name, modified_minutiae_list =  tp.generate_template(sx, sy, minutiae_list, s, p, q, r, file_name)
+        modified_minutiae_list = np.array(modified_minutiae_list)
 
-    return 0
+        # save_template(save_file_name, modified_minutiae_list)
+        # with open(save_file_name, 'w') as fp:
+        #     for item in modified_minutiae_list:
+        #         x = item[0]
+        #         y = item[1]
+        #         s = "%s %s\n" % (x, y)
+        #         fp.write(s)
 
-# This function rotates the input set of points by a certain degrees
-def rotate(p, origin=(0, 0), degrees=0):
-    angle = np.deg2rad(degrees)
-    R = np.array([[np.cos(angle), -np.sin(angle)],
-                  [np.sin(angle),  np.cos(angle)]])
-    o = np.atleast_2d(origin)
-    p = np.atleast_2d(p)
-    return np.squeeze((np.dot(R, (p.T-o.T)) + o.T).T)
+    return modified_minutiae_list
 
+# This function calculates the best template for a query template by rotating the query template and maximising the hausdroff scores of the template
+def calculate_best_template(query_template,databse_template, threshold, origin):    
+    # Rotate the image 1 degree at a time using s0*cos(r0), s0*sin(r0) as the center and calculate the hausdroff distance4
+    alpha = 60
+    best_template = query_template
+    best_score = -np.inf
+    for i in range(-1*alpha, alpha, 1):
+        template = rotate(query_template, origin, i)
+        h_score = hausdroff_score(template, databse_template, threshold)
+        if(h_score > best_score):
+            best_score = h_score
+            best_template = template
+    
+    return best_template
+
+def one_to_one_matching(qtemplate, dtemplate, threshold1, threshold2, origin):
+    best_qtemplate = calculate_best_template(qtemplate, dtemplate, threshold1, origin)
+    m_score = matching_score(best_qtemplate, dtemplate, threshold1)
+    if(m_score >= threshold2):
+        return "Matched"
+    else:
+        return "Not_Matched"
+
+# This function performs one to many matching. The inputs are query_template and Directory containing all the templates. It returns the name of the template that are considered matched
+def one_to_many_matching(qtemplate, template_database, threshold1, threshold2, origin):
+    matched_template_path = []
+    # Go thorugh all the stored database in the template database directory
+    for path in os.listdir(template_database):
+        final_path = os.path.join(template_database, path)
+        if(os.path.isfile(final_path)):
+            dtemplate = []
+            with open(final_path) as f:
+                lines = f.readlines()
+                for line in lines:
+                    temp = line.split()
+                    x, y = float(temp[0]), float(temp[1])
+                    dtemplate.append([x, y])
+        
+            dtemplate = np.array(dtemplate)
+            best_qtemplate = calculate_best_template(qtemplate, dtemplate, threshold1, origin)
+            m_score = matching_score(best_qtemplate, dtemplate, threshold1)
+            print(m_score)
+            if(m_score >= threshold2):
+                matched_template_path.append(final_path)
+    
+    return matched_template_path
 
 def main():
-    query_template("101_1.png")
+    p, q, r, s = tp.read_keyset()
+    origin = (s*math.cos(math.radians(r)), s*math.sin(math.radians(r)))
+
+    # Defining the values of threshold
+    threshold1 = 5
+    threshold2 = 50
+
+    qtemplate = query_template("101_1.png")
+    path = one_to_many_matching(qtemplate, "Templates", threshold1, threshold2, origin)
+
+    print(path)
+
 
 # Main function calling
 if __name__ == "__main__":
     main()
-
-# def scoring_template(query_template, secured_template, threshold=3):
-#     n = len(query_template)
-#     m = len(secured_template)
-#     match = [[False for i in range(m)] for j in range(n)]
-#     for i in range(n):
-#         q_x, q_y, q_z, = query_template[i]
-#         for j in range(m):
-#             s_x, s_y, s_z = secured_template[j]
-#             match[i][j] = ((q_x - s_x)**2 + (q_y - s_y)**2 +
-#                            (q_z - s_z)**2 - threshold**2) <= 0
-
-#     match = np.array(match)
-#     mqt = 0
-#     for i in range(n):
-#         mqt += any([x == True for x in match[i, :]])
-#     mtq = 0
-#     for i in range(m):
-#         mtq += any([x == True for x in match[:, i]])
-#     score = min(mqt / n, mtq / m) * 100
-#     return score
-
-
-
-# def match_template(query_template,secured_template):
-
-# #     m_set,sing_points = get_points(query_image_path)
-# #     query_image = cv2.imread(query_image_path,0)
-
-# #     query_secured_template = get_secure_template(query,keyset,m_set,sing_points)
-    
-#     '''
-#         11 iterations part needs to be implemented
-#     '''
-#     match_radius = 76
-#     max_score = -float('inf')
-#     for i in range(-5,6):
-#         rotated_template = rotate_(query_template,i)
-#         score = scoring_template(rotated_template,secured_template,match_radius)
-#         if score > max_score:
-#             max_score = score
-#     return max_score
