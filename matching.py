@@ -9,8 +9,7 @@ Both of the function will return the matching score(highest matching score in ca
     matching score = ((min(mns/ns, mnq/nq))*100)
 """
 
-from cv2 import threshold
-from nbformat import read
+import cv2
 import template as tp
 import numpy as np
 import os
