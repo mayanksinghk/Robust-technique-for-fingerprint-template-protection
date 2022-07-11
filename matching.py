@@ -13,6 +13,7 @@ import database as db
 import numpy as np
 import os
 import math
+import cv2
 
 """
 Things to do in Matching:
@@ -55,12 +56,18 @@ def check_singular_file(s):
 
 # This function is takes the name of the fingerprint and creates the template for the query image
 def query_template(qimage):
+    im = cv2.open(qimage)
+    height, width = im.shape[0:2]
+    centerx, centery = int(height//2), int(width//2)
+
     file_with_extenstion = os.path.splitext(qimage)
     file_name = file_with_extenstion[0]
     singular_file = file_name + ".singular"
     minutiae_file = file_name + ".txt"
 
-    singular_list = []
+    sx, sy = 0, 0
+    min = np.inf
+    # singular_list = []
     minutiae_list = []
 
     check = check_singular_file(singular_file)
@@ -73,9 +80,13 @@ def query_template(qimage):
             lines = f.readlines()
             for line in lines:
                 temp = line.split()
-                x,y = temp[0],temp[1]
-                x,y = float(x),float(y)
-                singular_list.append([x,y])
+                x,y = float(temp[0]),float(temp[1])
+                dist = math.sqrt((x-centerx)*(x-centerx) + (y-centery)*(y-centery))
+                if(dist < min):
+                    dist = min
+                    sx = x
+                    sy = y
+                # singular_list.append([x,y])
     
         file_name = os.path.join("Database" , minutiae_file)
         with open(file_name) as f:
